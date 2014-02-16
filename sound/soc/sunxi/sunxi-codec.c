@@ -479,6 +479,7 @@ static int codec_dev_free(struct snd_device *device)
 */
 static const struct snd_kcontrol_new sunxibc_dac[] = {
 	//FOR B C VERSION
+#ifndef CONFIG_ANDROID
 	CODEC_SINGLE("Master Playback Volume", SUNXI_DAC_ACTL,0,0x3f,0),
 	CODEC_SINGLE("Playback Switch", SUNXI_DAC_ACTL,6,1,0),//全局输出开关
 	CODEC_SINGLE("Fm Volume",SUNXI_DAC_ACTL,23,7,0),//Fm 音量
@@ -491,6 +492,126 @@ static const struct snd_kcontrol_new sunxibc_dac[] = {
 	CODEC_SINGLE("Rdac Right Mixer",SUNXI_DAC_ACTL,14,1,0),
 	CODEC_SINGLE("Ldac Right Mixer",SUNXI_DAC_ACTL,13,1,0),
 	CODEC_SINGLE("Mic Input Mux",SUNXI_DAC_ACTL,9,15,0),//from bit 9 to bit 12.Mic（麦克风）输入静音
+#else
+	/*SUN4I_DAC_ACTL = 0x10,PAVOL*/	
+	CODEC_SINGLE("Master Playback Volume", SUNXI_DAC_ACTL,0,0x3f,0),
+	/*total output switch PAMUTE,if set this bit to 0, the voice is mute*/
+	CODEC_SINGLE("Playback PAMUTE SWITCH", SUNXI_DAC_ACTL,6,1,0),
+	/*mixer output switch MIXPAS*/
+	CODEC_SINGLE("Playback MIXPAS", SUNXI_DAC_ACTL,7,1,0),
+	/*system digital voice output switch DACPAS*/
+	CODEC_SINGLE("Playback DACPAS", SUNXI_DAC_ACTL,8,1,0),
+	/*from bit 9 to bit 12.Mic1/2 output switch.
+			MIC1LS 		MIC1RS 		MIC2LS 		MIC2RS
+	0x0   	mute  		mute    	mute   		mute
+	0x3     mute    	mute    	not mute 	not mute
+	0x12    not mute 	not mute    mute    	mute
+	0x15	not mute	not mute	not mute	not mute
+	0x0*/
+	CODEC_SINGLE("Mic Output Mix",SUNXI_DAC_ACTL,9,15,0),
+	/*Left DAC to right output mixer mute*/
+	CODEC_SINGLE("Ldac Right Mixer",SUNXI_DAC_ACTL,13,1,0),
+	/*Right DAC to right output mixer mute*/
+	CODEC_SINGLE("Rdac Right Mixer",SUNXI_DAC_ACTL,14,1,0),
+	/*Left DAC to left output mixer mute*/
+	CODEC_SINGLE("Ldac Left Mixer",SUNXI_DAC_ACTL,15,1,0),
+	/*right FM to right output mixer mute*/
+	CODEC_SINGLE("FmR Switch",SUNXI_DAC_ACTL,16,1,0),//Fm right switch
+	/*Left FM to left output mixer mute*/
+	CODEC_SINGLE("FmL Switch",SUNXI_DAC_ACTL,17,1,0),//Fm left switch
+	/* 	Right LINEIN gain stage to right output mixer mite,
+	*	When LNRDF is 0, right select LINEINR
+	*	When LNRDF is 1, right select LINEINL-LINEINR
+	*/
+	CODEC_SINGLE("LineR Switch",SUNXI_DAC_ACTL,18,1,0),//Line right switch
+	/* 	Left LINEIN gain stage to left output mixer mite,
+	*	When LNRDF is 0, left select LINEINL
+	*	When LNRDF is 1, left select LINEINL-LINEINR
+	*/
+	CODEC_SINGLE("LineL Switch",SUNXI_DAC_ACTL,19,1,0),//Line left switch
+	/*	MIC1/2 gain stage to output mixer Gain Control
+	* 	From -4.5db to 6db,1.5db/step,default is 0db
+	*	-4.5db:0x0,-3.0db:0x1,-1.5db:0x2,0db:0x3
+	*	1.5db:0x4,3.0db:0x5,4.5db:0x6,6db:0x7
+	*/
+	CODEC_SINGLE("MIC output volume",SUNXI_DAC_ACTL,20,7,0),
+	/*	FM Input to output mixer Gain Control
+	* 	From -4.5db to 6db,1.5db/step,default is 0db
+	*	-4.5db:0x0,-3.0db:0x1,-1.5db:0x2,0db:0x3
+	*	1.5db:0x4,3.0db:0x5,4.5db:0x6,6db:0x7
+	*/
+	CODEC_SINGLE("Fm output Volume",SUNXI_DAC_ACTL,23,7,0),//Fm output volume
+	/*	Line-in gain stage to output mixer Gain Control
+	*	0:-1.5db,1:0db
+	*/
+	CODEC_SINGLE("Line output Volume",SUNXI_DAC_ACTL,26,1,0),//Line output volume
+	/*Analog Output Mixer Enable*/
+	CODEC_SINGLE("MIX Enable",SUNXI_DAC_ACTL,29,1,0),
+	/*Internal DAC Analog Left channel Enable*/
+	CODEC_SINGLE("DACALEN Enable",SUNXI_DAC_ACTL,30,1,0),
+	/*Internal DAC Analog Right channel Enable*/
+	CODEC_SINGLE("DACAREN Enable",SUNXI_DAC_ACTL,31,1,0),
+
+	CODEC_SINGLE("PA Enable",SUNXI_ADC_ACTL,4,1,0),
+
+	/*
+	*	dither enable
+	*/
+	CODEC_SINGLE("dither enable",SUNXI_ADC_ACTL,8,1,0),	
+
+	CODEC_SINGLE("Mic1outn Enable",SUNXI_ADC_ACTL,12,1,0),
+	CODEC_SINGLE("LINEIN APM Volume", SUNXI_ADC_ACTL,13,0x7,0),
+	/*
+	*0:Line-in right channel which is independent of line-in left channel
+	*1:negative input of line-in left channel for fully differential application
+	*/
+	CODEC_SINGLE("Line-in-r function define",SUNXI_ADC_ACTL,16,1,0),
+	/*ADC Input source select
+	* 000:left select LINEINL, right select LINEINR; or, both select LINEINL-LINEINR,depending on LNRDF(bit 16)
+	* 001:left channel select FMINL & right channel select FMINR
+	* 010:both MIC1
+	* 011:both MIC2	
+	* 101:MIC1+MIC2 capture
+	* 110:left select output mixer L & right select 
+	* 111:left select LINEINL or LINEINL-LINEINR, depending on LNRDF(bit 16),right select MIC1 gain stage	
+	*/
+	CODEC_SINGLE("ADC Input source",SUNXI_ADC_ACTL,17,7,0),
+
+	/*ADC Input Gain Control, capture volume
+	* 000:-4.5db,001:-3db,010:-1.5db,011:0db,100:1.5db,101:3db,110:4.5db,111:6db
+	*/
+	CODEC_SINGLE("Capture Volume",SUNXI_ADC_ACTL,20,7,0),
+	/*
+	*	MIC2 pre-amplifier Gain Control
+	*	00:0db,01:35db,10:38db,11:41db
+	*/
+	CODEC_SINGLE("Mic2 gain Volume",SUNXI_ADC_ACTL,23,3,0),
+	/*
+	*	MIC1 pre-amplifier Gain Control
+	*	00:0db,01:35db,10:38db,11:41db
+	*/
+	CODEC_SINGLE("Mic1 gain Volume",SUNXI_ADC_ACTL,25,3,0),
+	/*
+	*	VMic enable
+	*/
+	CODEC_SINGLE("VMic enable",SUNXI_ADC_ACTL,27,1,0),
+	/*
+	*	MIC2 pre-amplifier enable
+	*/
+	CODEC_SINGLE("Mic2 amplifier enable",SUNXI_ADC_ACTL,28,1,0),
+	/*
+	*	MIC1 pre-amplifier enable
+	*/
+	CODEC_SINGLE("Mic1 amplifier enable",SUNXI_ADC_ACTL,29,1,0),
+	/*
+	*	ADC Left Channel enable
+	*/
+	CODEC_SINGLE("ADCL enable",SUNXI_ADC_ACTL,30,1,0),
+	/*
+	*	ADC Right enable
+	*/
+	CODEC_SINGLE("ADCR enable",SUNXI_ADC_ACTL,31,1,0),
+#endif
 };
 
 static const struct snd_kcontrol_new sunxia_dac[] = {
@@ -609,10 +730,12 @@ int __devinit snd_chip_codec_mixer_new(struct snd_card *card)
 			for (idx = 0; idx < ARRAY_SIZE(sunxibc_dac); idx++)
 				if ((err = snd_ctl_add(card, snd_ctl_new1(&sunxibc_dac[idx], clnt))) < 0)
 					return err;
+#ifndef CONFIG_ANDROID
 		if (has_capture)
 			for (idx = 0; idx < ARRAY_SIZE(codec_adc_controls); idx++)
 				if ((err = snd_ctl_add(card, snd_ctl_new1(&codec_adc_controls[idx], clnt))) < 0)
 					return err;
+#endif
 	} else if (sunxi_is_sun7i()) {
 		if (has_playback)
 			for (idx = 0; idx < ARRAY_SIZE(sun7i_dac_ctls); idx++)

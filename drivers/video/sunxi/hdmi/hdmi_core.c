@@ -85,6 +85,9 @@ void hdmi_delay_ms(__u32 t)
 
 __s32 hdmi_core_initial(void)
 {
+#ifdef CONFIG_ANDROID
+    int i, rc;
+#endif
 	if (audio) {
 		if (strncmp(audio, "EDID:", 5) == 0) {
 			audio_edid = 1;
@@ -102,6 +105,16 @@ __s32 hdmi_core_initial(void)
 	writel(0x80000000, HDMI_CTRL); /* start hdmi controller */
 	if (sunxi_is_sun7i())
 		writel(0xe0000000, HDMI_TX_DRIVER); /* power enable */
+
+#ifdef CONFIG_ANDROID
+    for (i = 0; i < ARRAY_SIZE(audio_devs); i++) {
+        rc = platform_device_register(audio_devs + i);
+        if (rc < 0)
+            pr_warn("Failed to register %s (%d)\n",
+                    audio_devs[i].name, rc);
+    }
+    audio_devs_registered = 1;
+#endif
 
 	return 0;
 }
@@ -164,6 +177,7 @@ __s32 hdmi_main_task_loop(void)
 		if (!cec_standby)
 			cec_count = 100;
 
+#ifndef CONFIG_ANDROID
 		if (audio_edid && Device_Support_VIC[HDMI_EDID]) {
 			if (audio_info.supported_rates)
 				audio_enable = 1;
@@ -179,6 +193,7 @@ __s32 hdmi_main_task_loop(void)
 			}
 			audio_devs_registered = 1;
 		}
+#endif
 		hdmi_state = HDMI_State_Wait_Video_config;
 
 	case HDMI_State_Wait_Video_config:
