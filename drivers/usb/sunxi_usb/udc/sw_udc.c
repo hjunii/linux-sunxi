@@ -3117,7 +3117,7 @@ static int sun4i_start(struct usb_gadget_driver *driver,
 	}
 
 	/* Enable udc */
-	sw_udc_set_pullup(udc, 1);
+	//sw_udc_set_pullup(udc, 1);
 
 	return 0;
 
@@ -3256,13 +3256,25 @@ static struct sw_udc sw_udc = {
 	.ep[5] = {
 		.num			= 5,
 		.ep = {
-			.name		= "ep5-int",
+			.name		= "ep5-bulk",
 			.ops		= &sw_udc_ep_ops,
 			.maxpacket	= SW_UDC_EP_FIFO_SIZE,
 		},
 		.dev		        = &sw_udc,
 		.fifo_size	        = (SW_UDC_EP_FIFO_SIZE * (SW_UDC_FIFO_NUM + 1)),
 		.bEndpointAddress   = 5,
+		.bmAttributes	    = USB_ENDPOINT_XFER_BULK,
+	},
+	.ep[6] = {
+		.num			= 6,
+		.ep = {
+			.name		= "ep6-int",
+			.ops		= &sw_udc_ep_ops,
+			.maxpacket	= SW_UDC_EP_FIFO_SIZE,
+		},
+		.dev		        = &sw_udc,
+		.fifo_size	        = (SW_UDC_EP_FIFO_SIZE * (SW_UDC_FIFO_NUM + 1)),
+		.bEndpointAddress   = 6,
 		.bmAttributes	    = USB_ENDPOINT_XFER_INT,
 	},
 };

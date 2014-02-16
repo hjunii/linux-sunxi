@@ -84,7 +84,8 @@ static const char *const ep_name[] = {
 	"ep2-bulk",
 	"ep3-bulk",
 	"ep4-bulk",
-	"ep5-int"
+	"ep5-bulk",
+    "ep6-int",
 };
 
 #define SW_UDC_ENDPOINTS       ARRAY_SIZE(ep_name)
