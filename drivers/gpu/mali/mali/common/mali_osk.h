@@ -1,9 +1,9 @@
 /*
  * Copyright (C) 2010-2012 ARM Limited. All rights reserved.
- *
+ * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
- *
+ * 
  * A copy of the licence is included with the program, and can also be obtained from Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
@@ -577,7 +577,7 @@ typedef enum _mali_osk_resource_type
 	MALI400PP           =2,  /**< Compatibility option */
 	MALI300PP           =2,  /**< Compatibility option */
 	MALI200             =2,  /**< Compatibility option */
-
+	
 	MALI_GP             =3,  /**< Mali Geometry Processor core */
 	MALI450GP           =3,  /**< Compatibility option */
 	MALI400GP           =3,  /**< Compatibility option */
@@ -1421,17 +1421,6 @@ void _mali_osk_notification_queue_term( _mali_osk_notification_queue_t *queue );
  * @param object The entry to add
  */
 void _mali_osk_notification_queue_send( _mali_osk_notification_queue_t *queue, _mali_osk_notification_t *object );
-
-#if MALI_STATE_TRACKING
-/** @brief Receive a notification from a queue
- *
- * Check if a notification queue is empty.
- *
- * @param queue The queue to check.
- * @return MALI_TRUE if queue is empty, otherwise MALI_FALSE.
- */
-mali_bool _mali_osk_notification_queue_is_empty( _mali_osk_notification_queue_t *queue );
-#endif
 
 /** @brief Receive a notification from a queue
  *

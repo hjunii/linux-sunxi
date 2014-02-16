@@ -1,9 +1,9 @@
 /**
  * Copyright (C) 2011-2012 ARM Limited. All rights reserved.
- *
+ * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
- *
+ * 
  * A copy of the licence is included with the program, and can also be obtained from Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
@@ -17,7 +17,6 @@
 #include <linux/kernel.h>
 #include <linux/fs.h>
 #include <linux/device.h>
-#include <linux/version.h>
 #include <linux/module.h>
 #include "mali_kernel_license.h"
 #include "mali_kernel_common.h"
@@ -45,9 +44,11 @@
 #include "mali_kernel_core.h"
 #include "mali_user_settings_db.h"
 #include "mali_device_pause_resume.h"
+#include "mali_profiling_internal.h"
 
 #define POWER_BUFFER_SIZE 3
 
+struct device *mali_device;
 static struct dentry *mali_debugfs_dir = NULL;
 
 typedef enum
@@ -68,6 +69,7 @@ static const char* const mali_power_events[_MALI_MAX_EVENTS] = {
 
 static u32 virtual_power_status_register=0;
 static char pwr_buf[POWER_BUFFER_SIZE];
+
 
 static int open_copy_private_data(struct inode *inode, struct file *filp)
 {
@@ -208,7 +210,7 @@ static ssize_t gp_all_counter_srcx_write(struct file *filp, const char __user *u
 					{
 						return 0;
 					}
-				}
+				}				
 			}
 
 			/* try next group */
@@ -412,7 +414,7 @@ static ssize_t pp_all_counter_srcx_write(struct file *filp, const char __user *u
 					{
 						return 0;
 					}
-				}
+				}				
 			}
 
 			/* try next group */
@@ -614,8 +616,8 @@ static ssize_t l2_all_counter_srcx_write(struct file *filp, const char __user *u
 			{
 				return 0;
 			}
-		}
-
+		}				
+		
 		/* try next L2 */
 		l2_id++;
 		l2_cache = mali_l2_cache_core_get_glob_l2_core(l2_id);
@@ -681,7 +683,7 @@ static const struct file_operations l2_all_counter_src1_fops = {
 
 static ssize_t power_events_write(struct file *filp, const char __user *ubuf, size_t cnt, loff_t *ppos)
 {
-
+	
 	memset(pwr_buf,0,POWER_BUFFER_SIZE);
 	virtual_power_status_register = 0;
 	if (!strncmp(ubuf,mali_power_events[_MALI_DEVICE_SUSPEND],strlen(mali_power_events[_MALI_DEVICE_SUSPEND])))
@@ -705,7 +707,7 @@ static ssize_t power_events_write(struct file *filp, const char __user *ubuf, si
 		if (!power_on)
 		{
 			virtual_power_status_register = 2;
-			mali_dev_resume();
+			mali_dev_resume();		
 		}
 		else
 		{
@@ -718,7 +720,7 @@ static ssize_t power_events_write(struct file *filp, const char __user *ubuf, si
 		mali_dev_resume();
 		/*  @@@@ assuming currently resume is successful later on to tune as per previous */
 		virtual_power_status_register = 1;
-
+                
 	}
 	*ppos += cnt;
 	sprintf(pwr_buf, "%d",virtual_power_status_register);
@@ -790,7 +792,7 @@ static ssize_t profiling_record_read(struct file *filp, char __user *ubuf, size_
 	char buf[64];
 	int r;
 
-	r = sprintf(buf, "%u\n", _mali_osk_profiling_is_recording() ? 1 : 0);
+	r = sprintf(buf, "%u\n", _mali_internal_profiling_is_recording() ? 1 : 0);
 	return simple_read_from_buffer(ubuf, cnt, ppos, buf, r);
 }
 
@@ -823,16 +825,16 @@ static ssize_t profiling_record_write(struct file *filp, const char __user *ubuf
 		u32 limit = MALI_PROFILING_MAX_BUFFER_ENTRIES; /* This can be made configurable at a later stage if we need to */
 
 		/* check if we are already recording */
-		if (MALI_TRUE == _mali_osk_profiling_is_recording())
+		if (MALI_TRUE == _mali_internal_profiling_is_recording())
 		{
 			MALI_DEBUG_PRINT(3, ("Recording of profiling events already in progress\n"));
 			return -EFAULT;
 		}
 
 		/* check if we need to clear out an old recording first */
-		if (MALI_TRUE == _mali_osk_profiling_have_recording())
+		if (MALI_TRUE == _mali_internal_profiling_have_recording())
 		{
-			if (_MALI_OSK_ERR_OK != _mali_osk_profiling_clear())
+			if (_MALI_OSK_ERR_OK != _mali_internal_profiling_clear())
 			{
 				MALI_DEBUG_PRINT(3, ("Failed to clear existing recording of profiling events\n"));
 				return -EFAULT;
@@ -840,7 +842,7 @@ static ssize_t profiling_record_write(struct file *filp, const char __user *ubuf
 		}
 
 		/* start recording profiling data */
-		if (_MALI_OSK_ERR_OK != _mali_osk_profiling_start(&limit))
+		if (_MALI_OSK_ERR_OK != _mali_internal_profiling_start(&limit))
 		{
 			MALI_DEBUG_PRINT(3, ("Failed to start recording of profiling events\n"));
 			return -EFAULT;
@@ -852,12 +854,12 @@ static ssize_t profiling_record_write(struct file *filp, const char __user *ubuf
 	{
 		/* stop recording profiling data */
 		u32 count = 0;
-		if (_MALI_OSK_ERR_OK != _mali_osk_profiling_stop(&count))
+		if (_MALI_OSK_ERR_OK != _mali_internal_profiling_stop(&count))
 		{
 			MALI_DEBUG_PRINT(2, ("Failed to stop recording of profiling events\n"));
 			return -EFAULT;
 		}
-
+		
 		MALI_DEBUG_PRINT(2, ("Profiling recording stopped (recorded %u events)\n", count));
 	}
 
@@ -876,7 +878,7 @@ static void *profiling_events_start(struct seq_file *s, loff_t *pos)
 	loff_t *spos;
 
 	/* check if we have data avaiable */
-	if (MALI_TRUE != _mali_osk_profiling_have_recording())
+	if (MALI_TRUE != _mali_internal_profiling_have_recording())
 	{
 		return NULL;
 	}
@@ -896,13 +898,13 @@ static void *profiling_events_next(struct seq_file *s, void *v, loff_t *pos)
 	loff_t *spos = v;
 
 	/* check if we have data avaiable */
-	if (MALI_TRUE != _mali_osk_profiling_have_recording())
+	if (MALI_TRUE != _mali_internal_profiling_have_recording())
 	{
 		return NULL;
 	}
 
 	/* check if the next entry actually is avaiable */
-	if (_mali_osk_profiling_get_count() <= (u32)(*spos + 1))
+	if (_mali_internal_profiling_get_count() <= (u32)(*spos + 1))
 	{
 		return NULL;
 	}
@@ -927,7 +929,7 @@ static int profiling_events_show(struct seq_file *seq_file, void *v)
 	index = (u32)*spos;
 
 	/* Retrieve all events */
-	if (_MALI_OSK_ERR_OK == _mali_osk_profiling_get_event(index, &timestamp, &event_id, data))
+	if (_MALI_OSK_ERR_OK == _mali_internal_profiling_get_event(index, &timestamp, &event_id, data))
 	{
 		seq_printf(seq_file, "%llu %u %u %u %u %u %u\n", timestamp, event_id, data[0], data[1], data[2], data[3], data[4]);
 		return 0;
@@ -1041,7 +1043,6 @@ static int mali_sysfs_user_settings_register(void)
 int mali_sysfs_register(struct mali_dev *device, dev_t dev, const char *mali_dev_name)
 {
 	int err = 0;
-	struct device * mdev;
 
 	device->mali_class = class_create(THIS_MODULE, mali_dev_name);
 	if (IS_ERR(device->mali_class))
@@ -1049,10 +1050,10 @@ int mali_sysfs_register(struct mali_dev *device, dev_t dev, const char *mali_dev
 		err = PTR_ERR(device->mali_class);
 		goto init_class_err;
 	}
-	mdev = device_create(device->mali_class, NULL, dev, NULL, mali_dev_name);
-	if (IS_ERR(mdev))
+	mali_device = device_create(device->mali_class, NULL, dev, NULL, mali_dev_name);
+	if (IS_ERR(mali_device))
 	{
-		err = PTR_ERR(mdev);
+		err = PTR_ERR(mali_device);
 		goto init_mdev_err;
 	}
 
@@ -1201,7 +1202,7 @@ int mali_sysfs_register(struct mali_dev *device, dev_t dev, const char *mali_dev
 						debugfs_create_file("counter_src0", 0600, mali_l2_l2x_dir, l2_cache, &l2_l2x_counter_src0_fops);
 						debugfs_create_file("counter_src1", 0600, mali_l2_l2x_dir, l2_cache, &l2_l2x_counter_src1_fops);
 					}
-
+					
 					/* try next L2 */
 					l2_id++;
 					l2_cache = mali_l2_cache_core_get_glob_l2_core(l2_id);

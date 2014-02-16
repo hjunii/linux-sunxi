@@ -1,15 +1,14 @@
 /*
  * Copyright (C) 2010-2012 ARM Limited. All rights reserved.
- *
+ * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
- *
+ * 
  * A copy of the licence is included with the program, and can also be obtained from Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 #include <linux/fs.h>       /* file system operations */
 #include <asm/uaccess.h>    /* user space access */
-#include <plat/memory.h>
 
 #include "mali_ukk.h"
 #include "mali_osk.h"
@@ -81,13 +80,11 @@ int mem_map_ext_wrapper(struct mali_session_data *session_data, _mali_uk_map_ext
 		return -EFAULT;
 	}
 
-	uk_args.ctx = session_data;
-	uk_args.phys_addr = __phys_to_bus(uk_args.phys_addr);
-
+    uk_args.ctx = session_data;
 	err_code = _mali_ukk_map_external_mem( &uk_args );
 
-	if (0 != put_user(uk_args.cookie, &argument->cookie))
-	{
+    if (0 != put_user(uk_args.cookie, &argument->cookie))
+    {
         if (_MALI_OSK_ERR_OK == err_code)
         {
             /* Rollback */

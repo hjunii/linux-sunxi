@@ -1,9 +1,9 @@
 /*
  * Copyright (C) 2010, 2012 ARM Limited. All rights reserved.
- *
+ * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
- *
+ * 
  * A copy of the licence is included with the program, and can also be obtained from Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
@@ -145,7 +145,6 @@ typedef enum
 		MALIGP2_REG_VAL_IRQ_VS_END_CMD_LST      | \
 		MALIGP2_REG_VAL_IRQ_PLBU_END_CMD_LST    | \
 		MALIGP2_REG_VAL_IRQ_PLBU_OUT_OF_MEM     | \
-		MALIGP2_REG_VAL_IRQ_HANG                | \
 		MALIGP2_REG_VAL_IRQ_FORCE_HANG          | \
 		MALIGP2_REG_VAL_IRQ_WRITE_BOUND_ERR     | \
 		MALIGP2_REG_VAL_IRQ_SYNC_ERROR 			| \
@@ -156,7 +155,6 @@ typedef enum
 		MALIGP2_REG_VAL_IRQ_VS_END_CMD_LST      | \
 		MALIGP2_REG_VAL_IRQ_PLBU_END_CMD_LST    | \
 		MALIGP2_REG_VAL_IRQ_PLBU_OUT_OF_MEM     | \
-		MALIGP2_REG_VAL_IRQ_HANG                | \
 		MALIGP2_REG_VAL_IRQ_FORCE_HANG          | \
 		MALIGP2_REG_VAL_IRQ_WRITE_BOUND_ERR     | \
 		MALIGP2_REG_VAL_IRQ_SYNC_ERROR 			| \

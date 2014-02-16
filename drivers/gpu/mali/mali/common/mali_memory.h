@@ -1,9 +1,9 @@
 /*
  * Copyright (C) 2010-2012 ARM Limited. All rights reserved.
- *
+ * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
- *
+ * 
  * A copy of the licence is included with the program, and can also be obtained from Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
@@ -76,5 +76,7 @@ _mali_osk_errcode_t mali_memory_core_resource_os_memory(_mali_osk_resource_t * r
 /** @brief Parse resource and prepare the dedicated memory allocator
  */
 _mali_osk_errcode_t mali_memory_core_resource_dedicated_memory(_mali_osk_resource_t * resource);
+
+mali_allocation_engine mali_mem_get_memory_engine(void);
 
 #endif /* __MALI_MEMORY_H__ */

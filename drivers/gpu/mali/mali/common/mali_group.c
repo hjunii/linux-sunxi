@@ -1,9 +1,9 @@
 /*
  * Copyright (C) 2011-2012 ARM Limited. All rights reserved.
- *
+ * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
- *
+ * 
  * A copy of the licence is included with the program, and can also be obtained from Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
@@ -536,7 +536,7 @@ static enum mali_group_activate_pd_status mali_group_activate_page_directory(str
 
 			activate_success = mali_mmu_activate_page_directory(group->mmu, mali_session_get_page_directory(session));
 			MALI_DEBUG_ASSERT(activate_success);
-			if ( MALI_FALSE== activate_success ) return MALI_FALSE;
+			if ( MALI_FALSE== activate_success ) return MALI_GROUP_ACTIVATE_PD_STATUS_FAILED;
 			group->session = session;
 			retval = MALI_GROUP_ACTIVATE_PD_STATUS_OK_SWITCHED_PD;
 		}

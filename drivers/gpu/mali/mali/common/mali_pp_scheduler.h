@@ -1,9 +1,9 @@
 /*
  * Copyright (C) 2012 ARM Limited. All rights reserved.
- *
+ * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
- *
+ * 
  * A copy of the licence is included with the program, and can also be obtained from Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
@@ -33,6 +33,7 @@ void mali_pp_scheduler_resume(void);
  */
 void mali_pp_scheduler_abort_session(struct mali_session_data *session);
 
+int mali_pp_scheduler_get_queue_depth(void);
 u32 mali_pp_scheduler_dump_state(char *buf, u32 size);
 
 #endif /* __MALI_PP_SCHEDULER_H__ */

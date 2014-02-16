@@ -1,9 +1,9 @@
 /**
  * Copyright (C) 2012 ARM Limited. All rights reserved.
- *
+ * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
- *
+ * 
  * A copy of the licence is included with the program, and can also be obtained from Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
@@ -82,7 +82,7 @@ _mali_osk_errcode_t _mali_ukk_get_user_settings(_mali_uk_get_user_settings_s *ar
 {
 	MALI_DEBUG_ASSERT_POINTER(args);
 
-	_mali_osk_memcpy(args->settings, mali_user_settings, (sizeof(u32) * _MALI_UK_USER_SETTING_MAX));
+	_mali_osk_memcpy(args->settings, mali_user_settings, sizeof(mali_user_settings));
 
 	return _MALI_OSK_ERR_OK;
 }
