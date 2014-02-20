@@ -66,6 +66,12 @@
 #include <plat/system.h>
 #include <plat/sys_config.h>
 
+#ifdef CONFIG_ANDROID
+#include <linux/uaccess.h>
+#include <linux/syscalls.h>
+#include <linux/reboot.h>
+#endif
+
 #include "clocksrc.h"
 
 int arch_timer_common_register(void);
@@ -445,9 +451,52 @@ struct sys_timer sw_sys_timer = {
 	.init = sw_timer_init,
 };
 
+#ifdef CONFIG_ANDROID
+static int sw_reboot_notify(struct notifier_block *nb, unsigned long event, void *data)
+{
+    int h_file = 0;
+    mm_segment_t oldfs;
+    unsigned char command[32];
+
+    if(data)
+    {
+        printk(KERN_DEBUG "sw_reboot_notify: data = %s\n", (unsigned char *)data);
+        oldfs = get_fs();
+        set_fs(KERNEL_DS);
+        h_file = sys_open("/dev/block/mmcblk0p4", O_RDWR, 0);
+        memset(command, 0, sizeof(command));
+        strcat(command, data);
+        sys_write(h_file, command, sizeof(command));
+        sys_close(h_file);
+        set_fs(oldfs);
+        sys_sync();
+    }
+    else
+    {
+        printk(KERN_DEBUG "sw_reboot_notify");
+    }
+
+    switch (event) {
+        case SYS_RESTART:
+        case SYS_HALT:
+        case SYS_POWER_OFF:
+            /* USB power rail must be enabled during boot */
+            return NOTIFY_OK;
+    }
+    return NOTIFY_DONE;
+}
+
+static struct notifier_block sw_reboot_nb = {
+    .notifier_call = sw_reboot_notify,
+};
+#endif
+
 void __init sw_core_init(void)
 {
 	sw_pdev_init();
+#ifdef CONFIG_ANDROID
+    register_reboot_notifier(&sw_reboot_nb);
+#endif
 }
 
 MACHINE_START(SUN4I, "sun4i")
