@@ -50,6 +50,7 @@ static _mali_osk_resource_t arch_configuration [] =
 		.description = "Mali-400 MMU for PP",
 		.mmu_id = 2
 	},
+#if 0
 	{
 		.type = MEMORY,
 		.description = "Mali Sdram",
@@ -58,11 +59,12 @@ static _mali_osk_resource_t arch_configuration [] =
 		.size = 64 * 1024 * 1024, /*64M*/
 		.flags = _MALI_CPU_WRITEABLE | _MALI_CPU_READABLE | _MALI_MMU_READABLE | _MALI_MMU_WRITEABLE
 	},
+#endif
 	{
 		.type = OS_MEMORY,
 		.description = "OS Memory",
 		.alloc_order = 1, /* Lowest preference for this memory */
-		.size = 512 * 1024 * 1024, /* 512 MB */
+		.size = 256 * 1024 * 1024, /* 256 MB */
 		.flags = _MALI_CPU_WRITEABLE | _MALI_CPU_READABLE | _MALI_MMU_READABLE | _MALI_MMU_WRITEABLE
 	},
 	{
