@@ -52,9 +52,9 @@ enum mclk_src {
 	SMC_MCLK_SRC_SATAPLL,
 	SMC_MCLK_SRC_DRAMPLL
 };
-#define SMC_MAX_MOD_CLOCK(n)    ((n)==3 ? 90000000 : 90000000)
-#define SMC_MAX_IO_CLOCK(n)     ((n)==3 ? 45000000 : 45000000)
-#define SMC_MOD_CLK_SRC(n)      ((n)==3 ? SMC_MCLK_SRC_DRAMPLL : SMC_MCLK_SRC_DRAMPLL)
+#define SMC_MAX_MOD_CLOCK(n)    (96000000)
+#define SMC_MAX_IO_CLOCK(n)     (50000000)
+#define SMC_MOD_CLK_SRC(n)      (SMC_MCLK_SRC_DRAMPLL)
 
 #elif defined(CONFIG_ARCH_SUN5I)
 #define  SUNXI_MMC_HOST_NUM     3
