@@ -1433,7 +1433,7 @@ CONFIG_I2C_SUNXI=y
 # Enable Device Drivers -> PPS to see the PTP clock options.
 #
 CONFIG_ARCH_WANT_OPTIONAL_GPIOLIB=y
-# CONFIG_GPIOLIB is not set
+CONFIG_GPIOLIB=y
 # CONFIG_W1 is not set
 CONFIG_POWER_SUPPLY=y
 CONFIG_AW_AXP=y

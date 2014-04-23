@@ -50,6 +50,7 @@ static _mali_osk_resource_t arch_configuration [] =
 		.description = "Mali-400 MMU for PP",
 		.mmu_id = 2
 	},
+    {
 		.type = OS_MEMORY,
 		.description = "OS Memory",
 		.cpu_usage_adjust = 0x40000000, /* PHYS_OFFSET */
