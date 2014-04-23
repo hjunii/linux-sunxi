@@ -21,6 +21,7 @@
 #include <linux/kernel.h>
 #include <linux/fb.h>
 #include <linux/console.h>
+#include <linux/file.h>
 
 #ifdef CONFIG_FB_SUNXI_UMP
 #include <ump/ump_kernel_interface.h>
@@ -35,6 +36,7 @@
 
 fb_info_t g_fbi;
 static DEFINE_MUTEX(g_fbi_mutex);
+struct mutex gcommit_mutek;
 
 static int screen0_output_type = -1;
 module_param(screen0_output_type, int, 0444);
@@ -1336,10 +1338,261 @@ __s32 DRV_disp_int_process(__u32 sel)
 	return 0;
 }
 
+__s32 DRV_disp_vsync_event(__u32 sel)
+{
+    g_fbi.vsync_timestamp[sel] = ktime_get();
+    //printk("VSYNC00\n");
+    schedule_work(&g_fbi.vsync_work[sel]);
+
+    return 0;
+}
+
+static void send_vsync_work_0(struct work_struct *work)
+{
+    char buf[64];
+    char *envp[2];
+
+    snprintf(buf, sizeof(buf), "VSYNC0=%llu",ktime_to_ns(g_fbi.vsync_timestamp[0]));
+    envp[0] = buf;
+    envp[1] = NULL;
+    kobject_uevent_env(&g_fbi.dev->kobj, KOBJ_CHANGE, envp);
+}
+
+static void send_vsync_work_1(struct work_struct *work)
+{
+    char buf[64];
+    char *envp[2];
+
+    snprintf(buf, sizeof(buf), "VSYNC1=%llu",ktime_to_ns(g_fbi.vsync_timestamp[1]));
+    envp[0] = buf;
+    envp[1] = NULL;
+    kobject_uevent_env(&g_fbi.dev->kobj, KOBJ_CHANGE, envp);
+}
+
+#define _ALIGN( value, base ) (((value) + ((base) - 1)) & ~((base) - 1))
+
+static int dispc_update_regs(setup_dispc_data_t *psDispcData)
+{
+    __disp_layer_info_t layer_info;
+    int i,disp,hdl;
+    int start_idx, layer_num = 0;
+    int err = 0;
+
+    for(i=0; i<psDispcData->post2_layers; i++)
+    {
+	        if(psDispcData->acquireFence[i]) 
+	        {
+	            err = sync_fence_wait(psDispcData->acquireFence[i] ,1000);
+	           
+		    	sync_fence_put(psDispcData->acquireFence[i]);
+			
+		    	if (err < 0)
+	            {
+	                __wrn("synce_fence_wait() timeout, layer:%d, fd:%d\n", i, psDispcData->acquireFenceFd[i]);					
+	                sw_sync_timeline_inc(g_fbi.timeline, 1);
+					return -1;
+	            }
+		}
+    }
+
+	if(g_fbi.b_no_output == 1){
+		sw_sync_timeline_inc(g_fbi.timeline, 1);
+		return 0;
+	}
+
+	BSP_disp_cmd_cache(0);
+	//bsp_disp_cmd_cache(1);
+
+    for(disp = 0; disp < 1; disp++)
+    {
+        if(!psDispcData->show_black[disp])
+        {
+            if(disp == 0)
+            {
+                start_idx = 0;
+                layer_num = psDispcData->primary_display_layer_num;
+            }
+            else
+            {
+                start_idx = psDispcData->primary_display_layer_num;
+                layer_num = psDispcData->post2_layers - psDispcData->primary_display_layer_num;
+            }
+
+            for(i=0; i<4; i++)
+            {
+                hdl = 100 + i;
+				memset( &layer_info,0,sizeof(__disp_layer_info_t));
+                BSP_disp_layer_get_para(disp, hdl, &layer_info);
+                if(layer_info.mode == DISP_LAYER_WORK_MODE_SCALER)
+                {
+                    if((i >= layer_num) || (psDispcData->layer_info[start_idx + i].mode == DISP_LAYER_WORK_MODE_NORMAL))
+                    {
+                        BSP_disp_layer_release(disp, hdl);
+                        BSP_disp_layer_request(disp, DISP_LAYER_WORK_MODE_NORMAL);
+                    }
+                }
+				
+            }
+        }
+    }
+    for(disp = 0; disp < 1; disp++)
+    {
+	if(!psDispcData->show_black[disp])
+	{
+	    int haveFbTarget = 0;
+	    
+	    if(disp == 0)
+	    {
+		start_idx = 0;
+		layer_num = psDispcData->primary_display_layer_num;
+	    }
+	    else
+	    {
+		start_idx = psDispcData->primary_display_layer_num;
+		layer_num = psDispcData->post2_layers - psDispcData->primary_display_layer_num;
+	    }
+	    
+	    for(i=0; i<4; i++)
+	    {
+			hdl = 100 + i;
+			
+			if(i < layer_num )
+			{
+			    memcpy(&layer_info, &psDispcData->layer_info[start_idx + i], sizeof(__disp_layer_info_t));
+
+			    if(layer_info.fb.mode == DISP_MOD_NON_MB_PLANAR )
+			    {
+					if(layer_info.fb.format == DISP_FORMAT_YUV420)
+					{
+					    layer_info.fb.addr[2] = layer_info.fb.addr[0] + layer_info.fb.size.width * layer_info.fb.size.height;
+					    layer_info.fb.addr[1] = layer_info.fb.addr[2] + (_ALIGN(layer_info.fb.size.width/2,16) * layer_info.fb.size.height)/2;
+					}
+			    }
+				if(layer_info.fb.mode == DISP_MOD_NON_MB_UV_COMBINED)
+			    {
+					if(layer_info.fb.format == DISP_FORMAT_YUV420)
+					{
+					    layer_info.fb.addr[1] = layer_info.fb.addr[0] + layer_info.fb.size.width * layer_info.fb.size.height;
+					}
+			    }
+
+                //pr_info("layer_info fb mode = %d format = %d addr[0] = %x addr[1] = %x addr[2] = %x\n", layer_info.fb.mode, layer_info.fb.format, layer_info.fb.addr[0], layer_info.fb.addr[1], layer_info.fb.addr[2]);
+			    BSP_disp_layer_set_para(disp, hdl, &layer_info);		   
+			    BSP_disp_layer_set_top(disp, hdl);
+			    BSP_disp_layer_open(disp, hdl);
+			    //printk(KERN_WARNING "##update layer:%d addr:%x\n", psDispcData->primary_display_layer_num, layer_info.fb.addr[0]);
+
+			    if(i==1 && (psDispcData->layer_info[start_idx + 1].prio < psDispcData->layer_info[start_idx].prio))
+			    {
+					haveFbTarget = 1;
+			    }
+			}
+			else
+			{
+			    BSP_disp_layer_close(disp, hdl);
+			}
+
+			if(haveFbTarget)
+			{
+			    BSP_disp_layer_set_top(disp, 100);
+			}
+	    }
+	}
+	else
+	{
+
+	    for(i=0; i<4; i++)
+	    {
+			hdl = 100 + i;
+
+			BSP_disp_layer_close(disp, hdl);
+	    }
+	}
+
+    }
+	BSP_disp_cmd_submit(0);
+	//bsp_disp_cmd_submit(1);
+	//spin_unlock(&(g_fbi.update_reg_lock));
+
+    Fb_wait_for_vsync(g_fbi.fbinfo[0]);
+    sw_sync_timeline_inc(g_fbi.timeline, 1);
+    return 0;
+}
+
+static void hwc_commit_work(struct work_struct *work)
+{
+    dispc_data_list_t *data, *next;
+    struct list_head saved_list;
+
+
+    mutex_lock(&(gcommit_mutek));
+	
+    mutex_lock(&(g_fbi.update_regs_list_lock));
+    list_replace_init(&g_fbi.update_regs_list, &saved_list);
+   
+    mutex_unlock(&(g_fbi.update_regs_list_lock));
+
+
+    list_for_each_entry_safe(data, next, &saved_list, list) 
+    {
+         list_del(&data->list);
+         dispc_update_regs(&data->hwc_data);
+         kfree(data);
+
+    }
+	mutex_unlock(&(gcommit_mutek));
+}
+
+int hwc_commit(int sel, setup_dispc_data_t *disp_data)
+{
+	dispc_data_list_t *disp_data_list;
+	struct sync_fence *fence;
+	struct sync_pt *pt;
+	int fd = -1;
+	int i = 0;
+
+	for(i=0; i<disp_data->post2_layers; i++)
+	{
+		if(disp_data->acquireFenceFd[i] >= 0)
+		{
+			disp_data->acquireFence[i] = sync_fence_fdget(disp_data->acquireFenceFd[i]);
+			if(!disp_data->acquireFence[i]) 
+			{
+				printk("sync_fence_fdget()fail, layer:%d fd:%d\n", i, disp_data->acquireFenceFd[i]);
+				return -1;
+			}
+		}
+	}
+
+	
+	fd = get_unused_fd();
+	if (fd < 0)
+	{
+	    return -1;
+	}
+	g_fbi.timeline_max++;
+	pt = sw_sync_pt_create(g_fbi.timeline, g_fbi.timeline_max);
+	fence = sync_fence_create("display", pt);
+	sync_fence_install(fence, fd);
+
+	disp_data_list = kzalloc(sizeof(dispc_data_list_t), GFP_KERNEL);
+	memcpy(&disp_data_list->hwc_data, disp_data, sizeof(setup_dispc_data_t));
+	mutex_lock(&(g_fbi.update_regs_list_lock));
+	list_add_tail(&disp_data_list->list, &g_fbi.update_regs_list);
+	mutex_unlock(&(g_fbi.update_regs_list_lock));
+	schedule_work(&g_fbi.commit_work);	
+	//hwc_commit_work(0);
+	
+	return fd;
+    
+}
+
 #ifdef CONFIG_FB_SUNXI_UMP
 int (*disp_get_ump_secure_id) (struct fb_info *info, fb_info_t *g_fbi,
 			       unsigned long arg, int buf);
 EXPORT_SYMBOL(disp_get_ump_secure_id);
+unsigned long (*disp_get_ump_phy_addr) (unsigned long ump_id);
+EXPORT_SYMBOL(disp_get_ump_phy_addr);
 #endif
 
 static int Fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
@@ -1349,6 +1602,10 @@ static int Fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 #ifdef CONFIG_FB_SUNXI_UMP
 	int secure_id_buf_num = 0;
 #endif
+    unsigned long ubuffer[2] = { 0 };
+    unsigned long ump_id = 0;
+    unsigned long ret_addr = 0;
+    unsigned long phy_addr = 0;
 
 	switch (cmd) {
 	case FBIOGET_LAYER_HDL_0:
@@ -1408,6 +1665,37 @@ static int Fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 			ret = Fb_wait_for_vsync(info);
 			break;
 		}
+
+    case GET_UMP_PHYSICAL_ADDRESS:
+        {
+            if (copy_from_user((void*) ubuffer, (void __user *)arg, 2 * sizeof(unsigned long)))
+            {
+                __wrn("copy from user fail\n");
+                return -EFAULT;
+            }
+
+            ump_id = *(unsigned long *)ubuffer;
+            ret_addr = (*(unsigned long*)(ubuffer + 1));
+
+			if (!disp_get_ump_phy_addr)
+				request_module("disp_ump");
+			if (disp_get_ump_phy_addr)
+            {
+                phy_addr = disp_get_ump_phy_addr(ump_id);
+                //pr_info("ump_id = %d phy_addr = %x\n", ump_id, phy_addr);
+            }
+
+            if (phy_addr == 0)
+                return -1;
+
+            if (copy_to_user((void __user *) ret_addr, &phy_addr, sizeof(unsigned long)))
+            {
+                __wrn("copy to user fail\n");
+                return -EFAULT;
+            }
+
+            break;
+        }
 
 #ifdef CONFIG_FB_SUNXI_UMP
 	case GET_UMP_SECURE_ID_BUF2:	/* flow trough */
@@ -1819,6 +2107,17 @@ __s32 Fb_Init(__u32 from)
 		__inf("fbmem: fb_start=%lu, fb_size=%lu\n", fb_start, fb_size);
 		disp_create_heap((unsigned long)(__va(fb_start)), fb_size);
 #endif
+
+        INIT_WORK(&g_fbi.vsync_work[0], send_vsync_work_0);
+        INIT_WORK(&g_fbi.vsync_work[1], send_vsync_work_1);
+        mutex_init(&gcommit_mutek);
+        INIT_WORK(&g_fbi.commit_work, hwc_commit_work);
+        INIT_LIST_HEAD(&g_fbi.update_regs_list);
+        g_fbi.timeline = sw_sync_timeline_create("sunxi-fb");
+        g_fbi.timeline_max = 1;
+        g_fbi.b_no_output = 0;
+        mutex_init(&g_fbi.update_regs_list_lock);
+        spin_lock_init(&(g_fbi.update_reg_lock));
 
 		for (i = 0; i < SUNXI_MAX_FB; i++) {
 			g_fbi.fbinfo[i] = framebuffer_alloc(0, g_fbi.dev);

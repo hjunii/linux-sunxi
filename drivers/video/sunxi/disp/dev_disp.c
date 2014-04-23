@@ -36,6 +36,8 @@
 #include "dev_fb.h"
 #include "disp_display.h"
 
+__u32 disp_print_cmd_level = 0;
+__u32 disp_cmd_print = 0xffff;
 
 struct info_mm {
 	void *info_base;	/* Virtual address */
@@ -82,6 +84,7 @@ static int g_disp_mm_sel;
 static struct cdev *my_cdev;
 static dev_t devid;
 static struct class *disp_class;
+struct device *display_dev;
 
 static struct resource disp_resource[DISP_IO_NUM] = {
 	[DISP_IO_SCALER0] = {
@@ -304,6 +307,7 @@ __s32 DRV_DISP_Init(void)
 	para.base_pioc = (__u32) g_fbi.base_pioc;
 	para.base_pwm = (__u32) g_fbi.base_pwm;
 	para.disp_int_process = DRV_disp_int_process;
+    para.vsync_event = DRV_disp_vsync_event;
 
 	memset(&g_disp_drv, 0, sizeof(struct __disp_drv_t));
 
@@ -712,6 +716,23 @@ static long disp_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	    cmd != DISP_CMD_VIDEO_GET_FRAME_ID)
 		DE_WRN("cmd:0x%x,%ld,%ld\n", cmd, ubuffer[0], ubuffer[1]);
 #endif
+    if (disp_print_cmd_level == 1) {
+        if (cmd != DISP_CMD_TV_GET_INTERFACE && cmd != DISP_CMD_HDMI_GET_HPD_STATUS && cmd != DISP_CMD_GET_OUTPUT_TYPE
+                && cmd != DISP_CMD_SCN_GET_WIDTH && cmd != DISP_CMD_SCN_GET_HEIGHT
+                && cmd != DISP_CMD_VIDEO_SET_FB && cmd != DISP_CMD_VIDEO_GET_FRAME_ID
+                && cmd != DISP_CMD_VSYNC_EVENT_EN)
+        {
+            if (cmd != disp_cmd_print)
+            {
+                __inf("cmd:0x%x,%ld,%ld\n", cmd, ubuffer[0], ubuffer[1]);
+            }
+        }
+    }
+
+    if (cmd == disp_cmd_print) 
+    {
+        __inf("cmd:0x%x,%ld,%ld\n", cmd, ubuffer[0], ubuffer[1]);
+    }
 
 	switch (cmd) {
 	/* ----disp global---- */
@@ -927,6 +948,13 @@ static long disp_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			ret = BSP_disp_iep_set_demo_win(ubuffer[0], 2, &para);
 			break;
 		}
+
+    case DISP_CMD_VSYNC_EVENT_EN:
+        {
+            //printk("######### set DISP_CMD_VSYNC_EVENT_EN is %d",ubuffer[1]);
+            ret = BSP_disp_vsync_event_enable(ubuffer[0], ubuffer[1]);
+            break;
+        }
 
 	/* ----layer---- */
 	case DISP_CMD_LAYER_REQUEST:
@@ -1864,6 +1892,19 @@ static long disp_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		ret = BSP_disp_print_reg(1, ubuffer[0]);
 		break;
 
+    case DISP_CMD_HWC_COMMIT:
+	{
+        setup_dispc_data_t para;
+
+        if(copy_from_user(&para, (void __user *)ubuffer[1],sizeof(setup_dispc_data_t)))
+        {
+            __wrn("copy_from_user fail\n");
+            return  -EFAULT;
+        }
+        ret = hwc_commit(ubuffer[0], &para);
+        break;
+	}
+
 	default:
 		break;
 	}
@@ -1919,6 +1960,8 @@ static struct platform_device disp_device_sun5i = {
 	}
 };
 
+extern int disp_attr_node_init(void);
+
 static int __init disp_module_init(void)
 {
 	int ret, err;
@@ -1941,7 +1984,7 @@ static int __init disp_module_init(void)
 		return -1;
 	}
 
-	device_create(disp_class, NULL, devid, NULL, "disp");
+	display_dev = device_create(disp_class, NULL, devid, NULL, "disp");
 
 	if (sunxi_is_sun5i())
 		ret = platform_device_register(&disp_device_sun5i);
@@ -1954,6 +1997,8 @@ static int __init disp_module_init(void)
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	register_early_suspend(&backlight_early_suspend_handler);
 #endif
+
+    disp_attr_node_init();
 
 	return ret;
 }

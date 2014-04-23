@@ -24,10 +24,29 @@
 #endif
 
 #include <ump/ump_kernel_interface_ref_drv.h>
+#include <ump_kernel_memory_backend.h>
 
 #include "drv_disp_i.h"
 #include "dev_disp.h"
 #include "dev_fb.h"
+
+static unsigned long _disp_get_ump_phy_addr(unsigned long ump_id)
+{
+    ump_dd_mem * mem = NULL;
+
+    if (0 != ump_dd_descriptor_mapping_get((int)ump_id, (void**)&mem))
+    {
+        printk(KERN_ERR "%s: ump_descriptor_mapping_get failed ump_id = %lu\n", __func__, ump_id);
+        return 0;
+    }
+
+    if (mem == NULL)
+    {
+        printk(KERN_ERR "%s: no description\n", __func__);
+    }
+
+    return (unsigned long) mem->block_array[0].addr;
+}
 
 static int _disp_get_ump_secure_id(struct fb_info *info, fb_info_t *g_fbi,
 				   unsigned long arg, int buf)
@@ -54,6 +73,7 @@ static int __init disp_ump_module_init(void)
 	int ret = 0;
 
 	disp_get_ump_secure_id = _disp_get_ump_secure_id;
+    disp_get_ump_phy_addr = _disp_get_ump_phy_addr;
 
 	return ret;
 }
@@ -61,6 +81,7 @@ static int __init disp_ump_module_init(void)
 static void __exit disp_ump_module_exit(void)
 {
 	disp_get_ump_secure_id = NULL;
+    disp_get_ump_phy_addr = NULL;
 }
 
 module_init(disp_ump_module_init);

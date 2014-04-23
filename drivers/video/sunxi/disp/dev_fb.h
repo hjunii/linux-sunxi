@@ -59,13 +59,30 @@ typedef struct {
 #endif
 	/* screen_base address, allocated with disp_malloc() */
 	void *malloc_screen_base[SUNXI_MAX_FB];
+
+    struct list_head update_regs_list;
+    struct sw_sync_timeline *timeline;
+    int timeline_max;
+    struct mutex update_regs_list_lock;
+    spinlock_t update_reg_lock;
+    __bool  b_no_output;
+    struct work_struct commit_work;
+    struct work_struct vsync_work[2];
+    ktime_t vsync_timestamp[2];
 } fb_info_t;
+
+typedef struct
+{
+    struct list_head    list;
+    setup_dispc_data_t  hwc_data;
+} dispc_data_list_t;
 
 extern fb_info_t g_fbi;
 
 #ifdef CONFIG_FB_SUNXI_UMP
 extern int (*disp_get_ump_secure_id) (struct fb_info *info, fb_info_t *g_fbi,
 				      unsigned long arg, int buf);
+extern unsigned long (*disp_get_ump_phy_addr) (unsigned long ump_id);
 #endif
 
 __s32 Display_Fb_Request(__u32 fb_id, __disp_fb_create_para_t *fb_para);

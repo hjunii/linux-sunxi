@@ -30,6 +30,7 @@ void *disp_malloc(__u32 num_bytes);
 void disp_free(void *p);
 
 __s32 DRV_disp_int_process(__u32 sel);
+__s32 DRV_disp_vsync_event(__u32 sel);
 
 __s32 DRV_DISP_Init(void);
 __s32 DRV_DISP_Exit(void);
@@ -45,5 +46,7 @@ __s32 DRV_lcd_close(__u32 sel);
 
 __s32 disp_set_hdmi_func(__disp_hdmi_func *func);
 __s32 disp_get_pll_freq(__u32 pclk, __u32 *pll_freq,  __u32 *pll_2x);
+
+extern int hwc_commit(int sel, setup_dispc_data_t *disp_data);
 
 #endif

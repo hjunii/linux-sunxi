@@ -430,6 +430,7 @@ __s32 BSP_disp_layer_set_framebuffer(__u32 sel, __u32 hid, __disp_fb_t *pfb)
 				layer_fb.offset_x = layer_man->para.src_win.x;
 				layer_fb.offset_y = layer_man->para.src_win.y;
 				layer_fb.format = pfb->format;
+                layer_fb.pre_multiply = pfb->pre_multiply;
 				DE_BE_Layer_Set_Framebuffer(sel, hid,
 							    &layer_fb);
 			}
@@ -523,6 +524,7 @@ __s32 BSP_disp_layer_set_src_window(__u32 sel, __u32 hid, __disp_rect_t *regn)
 				layer_fb.offset_x = regn->x;
 				layer_fb.offset_y = regn->y;
 				layer_fb.format = layer_man->para.fb.format;
+                layer_fb.pre_multiply = layer_man->para.fb.pre_multiply;
 
 				DE_BE_Layer_Set_Framebuffer(sel, hid,
 							    &layer_fb);
@@ -703,6 +705,7 @@ __s32 BSP_disp_layer_set_para(__u32 sel, __u32 hid,
 
 			if (layer_man->para.mode !=
 			    DISP_LAYER_WORK_MODE_SCALER) {
+                layer_src_t layer_src;
 				__u32 format = DISP_FORMAT_ARGB8888;
 
 				ret = Scaler_Request(0xff);
@@ -713,9 +716,11 @@ __s32 BSP_disp_layer_set_para(__u32 sel, __u32 hid,
 				}
 				DE_SCAL_Start(ret);
 
-				format = DISP_FORMAT_ARGB8888;
-				DE_BE_Layer_Set_Format(sel, hid, format, FALSE,
-						       DISP_SEQ_ARGB);
+                memset(&layer_src, 0, sizeof(layer_src_t));
+                layer_src.format = DISP_FORMAT_ARGB8888;
+                layer_src.br_swap = FALSE;
+                layer_src.pixseq = DISP_SEQ_ARGB;
+                DE_BE_Layer_Set_Framebuffer(sel, hid, &layer_src);
 				DE_BE_Layer_Video_Enable(sel, hid, TRUE);
 				DE_BE_Layer_Video_Ch_Sel(sel, hid, ret);
 				layer_man->scaler_index = ret;
@@ -729,7 +734,9 @@ __s32 BSP_disp_layer_set_para(__u32 sel, __u32 hid,
 				(gdisp.screen[sel].b_out_interlace == 1) ?
 				0xfffffffe : 0xffffffff;
 			scaler->out_fb.seq = DISP_SEQ_ARGB;
-			scaler->out_fb.format = DISP_FORMAT_RGB888;
+			scaler->out_fb.format = DISP_FORMAT_ARGB8888;
+            scaler->out_fb.mode = DISP_MOD_INTERLEAVED;
+
 			scaler->out_size.height = player->scn_win.height;
 			scaler->out_size.width = player->scn_win.width;
 			if (player->b_from_screen) {
@@ -804,6 +811,7 @@ __s32 BSP_disp_layer_set_para(__u32 sel, __u32 hid,
 				layer_fb.fb_width = player->fb.size.width;
 				layer_fb.offset_x = player->src_win.x;
 				layer_fb.offset_y = player->src_win.y;
+                layer_fb.pre_multiply = player->fb.pre_multiply;
 
 				DE_BE_Layer_Set_Framebuffer(sel, hid,
 							    &layer_fb);

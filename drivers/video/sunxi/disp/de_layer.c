@@ -149,7 +149,7 @@ static __s32 DE_BE_Layer_Set_Line_Width(__u32 sel, __u8 layidx, __u32 width)
 }
 
 __s32 DE_BE_Layer_Set_Format(__u32 sel, __u8 layidx, __disp_pixel_fmt_t format,
-			     __bool br_swap, __u8 order)
+			     __bool br_swap, __u8 order, __bool pre_multiply)
 {
 	__u32 tmp;
 
@@ -157,6 +157,10 @@ __s32 DE_BE_Layer_Set_Format(__u32 sel, __u8 layidx, __disp_pixel_fmt_t format,
 	DE_BE_WUINT32IDX(sel, DE_BE_LAYER_ATTRCTL_OFF1, layidx,
 			 (tmp & 0xfffff000) | format << 8 | br_swap << 2 |
 			 order);
+    tmp = 0;
+    tmp = DE_BE_RUINT32IDX(sel, DE_BE_LAYER_ATTRCTL_OFF0,layidx) & (~(3<<20));
+    tmp &= 0xfffc8c17;//Invalid bits set to zero
+    DE_BE_WUINT32IDX(sel, DE_BE_LAYER_ATTRCTL_OFF0, layidx, tmp | ((pre_multiply&3)<<20));
 
 	return 0;
 }
@@ -175,7 +179,7 @@ __s32 DE_BE_Layer_Set_Framebuffer(__u32 sel, __u8 layidx,
 				    layer_fb->offset_x, layer_fb->offset_y,
 				    bpp);
 	DE_BE_Layer_Set_Format(sel, layidx, layer_fb->format, layer_fb->br_swap,
-			       layer_fb->pixseq);
+			       layer_fb->pixseq, layer_fb->pre_multiply);
 
 	DE_BE_Layer_Set_Addr(sel, layidx, addr);
 	DE_BE_Layer_Set_Line_Width(sel, layidx, layer_fb->fb_width * bpp);

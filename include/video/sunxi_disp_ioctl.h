@@ -340,6 +340,7 @@ typedef struct {
 	/* source 3d mode, used for scaler mode layer */
 	__disp_3d_src_mode_t trd_mode;
 	__u32 trd_right_addr[3]; /* used when in frame packing 3d mode */
+    __bool pre_multiply; //TRUE: pre-multiply fb
 } __disp_fb_t;
 
 typedef struct {
@@ -646,6 +647,20 @@ typedef struct {
 	__bool br_swap[2];
 } __disp_init_t;
 
+typedef struct
+{
+    int                 post2_layers;
+    __disp_layer_info_t layer_info[8];
+    __disp_rect_t       fb_scn_win;
+
+    int                 primary_display_layer_num;
+    int                 show_black[2];
+    int                 time_stamp;
+
+    int                 acquireFenceFd[8];
+    struct sync_fence       *acquireFence[8];
+} setup_dispc_data_t;
+
 typedef enum tag_DISP_CMD {
 	/* ----disp global---- */
 	DISP_CMD_VERSION = 0x00,
@@ -694,6 +709,7 @@ typedef enum tag_DISP_CMD {
 	DISP_CMD_DRC_SET_WINDOW = 0x28,
 	DISP_CMD_DRC_ON = 0x29,
 	DISP_CMD_GET_DE_FLICKER_EN = 0x2a,
+    DISP_CMD_VSYNC_EVENT_EN = 0x2b,
 
 	/* ----layer---- */
 	DISP_CMD_LAYER_REQUEST = 0x40,
@@ -758,6 +774,7 @@ typedef enum tag_DISP_CMD {
 	DISP_CMD_HWC_GET_POS = 0xc3,
 	DISP_CMD_HWC_SET_FB = 0xc4,
 	DISP_CMD_HWC_SET_PALETTE_TABLE = 0xc5,
+    DISP_CMD_HWC_COMMIT = 0xc6,
 
 	/* ----video---- */
 	DISP_CMD_VIDEO_START = 0x100,
@@ -867,6 +884,7 @@ typedef enum tag_DISP_CMD {
 
 #define FBIOGET_LAYER_HDL_0 0x4700
 #define FBIOGET_LAYER_HDL_1 0x4701
+#define GET_UMP_PHYSICAL_ADDRESS 0x4702
 
 #define FBIO_CLOSE 0x4710
 #define FBIO_OPEN 0x4711

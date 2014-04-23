@@ -453,6 +453,8 @@ EXPORT_SYMBOL(ump_dd_reference_release);
 /* Export our own extended kernel space allocator */
 EXPORT_SYMBOL(ump_dd_handle_create_from_phys_blocks);
 
+EXPORT_SYMBOL(ump_dd_descriptor_mapping_get);
+
 /* Setup init and exit functions for this module */
 module_init(ump_initialize_module);
 module_exit(ump_cleanup_module);

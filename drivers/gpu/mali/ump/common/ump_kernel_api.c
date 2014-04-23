@@ -14,6 +14,7 @@
 #include "ump_uk_types.h"
 #include "ump_kernel_interface.h"
 #include "ump_kernel_common.h"
+#include "ump_kernel_descriptor_mapping.h"
 
 
 
@@ -180,6 +181,13 @@ UMP_KERNEL_API_EXPORT void ump_dd_reference_release(ump_dd_handle memh)
 	{
 		_mali_osk_lock_signal(device.secure_id_map_lock, _MALI_OSK_LOCKMODE_RW);
 	}
+}
+
+
+
+UMP_KERNEL_API_EXPORT int ump_dd_descriptor_mapping_get(int descriptor, void** target)
+{
+    return ump_descriptor_mapping_get(device.secure_id_map, descriptor, target);
 }
 
 
