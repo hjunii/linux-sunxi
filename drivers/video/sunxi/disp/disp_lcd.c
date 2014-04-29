@@ -698,6 +698,15 @@ TCON_close(__u32 sel)
 }
 EXPORT_SYMBOL(TCON_close);
 
+int TCON_get_open_status(__u32 screen_id)
+{
+    if(gdisp.screen[screen_id].lcdc_status & (LCDC_TCON0_USED | LCDC_TCON1_USED)) {
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
 static __u32 pwm_read_reg(__u32 offset)
 {
 	__u32 value = 0;

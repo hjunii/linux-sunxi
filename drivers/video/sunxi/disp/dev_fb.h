@@ -69,6 +69,15 @@ typedef struct {
     struct work_struct commit_work;
     struct work_struct vsync_work[2];
     ktime_t vsync_timestamp[2];
+    struct work_struct post2_cb_work;
+    __u32 reg_active[2];
+    struct mutex runtime_lock;
+    int blank[2];
+    __u32 cb_w_conut;
+    __u32 cb_r_conut;
+    __u32 cur_count;
+    void (*cb_fn)(void *, int);
+    void *cb_arg[10];
 } fb_info_t;
 
 typedef struct

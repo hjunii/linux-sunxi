@@ -1073,7 +1073,7 @@ static int Fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 		}
 	}
 
-	// Fb_wait_for_vsync(info);
+	Fb_wait_for_vsync(info);
 
 	return 0;
 }
@@ -1261,6 +1261,7 @@ static int Fb_setcmap(struct fb_cmap *cmap, struct fb_info *info)
 	unsigned int j, r = 0;
 	unsigned char hred, hgreen, hblue, htransp = 0xff;
 	unsigned short *red, *green, *blue, *transp;
+    unsigned int val = 0;
 
 	__inf("Fb_setcmap, cmap start:%d len:%d, %dbpp\n", cmap->start,
 	      cmap->len, info->var.bits_per_pixel);
@@ -1279,10 +1280,15 @@ static int Fb_setcmap(struct fb_cmap *cmap, struct fb_info *info)
 		else
 			htransp = 0xff;
 
+        val = (htransp<<24) | (hred<<16) | (hgreen<<8) |hblue;
+        BSP_disp_set_palette_table(0, &val, (cmap->start + j) * 4, 4);
+
+#if 0
 		r = Fb_setcolreg(cmap->start + j, hred, hgreen, hblue, htransp,
 				 info);
 		if (r)
 			return r;
+#endif
 	}
 
 	return 0;
@@ -1330,10 +1336,20 @@ static int Fb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 	return -EINVAL;
 }
 
+extern int TCON_get_open_status(__u32 sel);
 __s32 DRV_disp_int_process(__u32 sel)
 {
 	g_fbi.wait_count[sel]++;
 	wake_up_interruptible(&g_fbi.wait[sel]);
+
+    g_fbi.reg_active[sel] = 1;
+
+    if ((g_fbi.reg_active[0] || !TCON_get_open_status(0))
+            && (g_fbi.reg_active[1] || !TCON_get_open_status(1))) {
+        if (g_fbi.cb_r_conut != g_fbi.cb_w_conut) {
+            schedule_work(&g_fbi.post2_cb_work);
+        }
+    }
 
 	return 0;
 }
@@ -1367,6 +1383,149 @@ static void send_vsync_work_1(struct work_struct *work)
     envp[0] = buf;
     envp[1] = NULL;
     kobject_uevent_env(&g_fbi.dev->kobj, KOBJ_CHANGE, envp);
+}
+
+static void post2_cb(struct work_struct *work)
+{
+	int r_count = 0;
+
+	mutex_lock(&g_fbi.runtime_lock);
+	r_count = g_fbi.cb_r_conut;
+	while(r_count != g_fbi.cb_w_conut) {
+	if(r_count >= 9) {
+		r_count = 0;
+	}	else {
+		r_count++;
+	}
+	if(r_count == g_fbi.cur_count) {
+		break;
+	}	else if(g_fbi.cb_arg[r_count] != 0)	{
+		//printk(KERN_WARNING "##r_conut:%d %x\n", r_count, (unsigned int)g_fbi.cb_arg[r_count]);
+		g_fbi.cb_fn(g_fbi.cb_arg[r_count], 1);
+		g_fbi.cb_arg[r_count] = 0;
+		g_fbi.cb_r_conut = r_count;
+	}
+	}
+
+	mutex_unlock(&g_fbi.runtime_lock);
+}
+
+int dispc_gralloc_queue(setup_dispc_data_t *psDispcData, int ui32DispcDataLength, void (*cb_fn)(void *, int), void *cb_arg)
+{
+	__disp_layer_info_t         layer_info;
+	int i,disp,hdl;
+	int start_idx, layer_num = 0;
+	__u32 num_screens;
+
+	num_screens = 2;
+
+	BSP_disp_cmd_cache(0);
+	BSP_disp_cmd_cache(1);
+	for(disp = 0; disp < num_screens; disp++)	{
+		if(disp == 0)	{
+			start_idx = 0;
+			layer_num = psDispcData->primary_display_layer_num;
+		}	else {
+			start_idx = psDispcData->primary_display_layer_num;
+			layer_num = psDispcData->post2_layers - psDispcData->primary_display_layer_num;
+		}
+
+		for(i=0; i<4; i++) {
+			hdl = 100 + i;
+
+			BSP_disp_layer_get_para(disp, hdl, &layer_info);
+			if(layer_info.mode == DISP_LAYER_WORK_MODE_SCALER) {
+				if((i >= layer_num) || (psDispcData->layer_info[start_idx + i].mode == DISP_LAYER_WORK_MODE_NORMAL)) {
+					BSP_disp_layer_release(disp, hdl);
+					BSP_disp_layer_request(disp, DISP_LAYER_WORK_MODE_NORMAL);
+				}
+			}
+		}
+	}
+
+	for(disp = 0; disp < num_screens; disp++) {
+		int haveFbTarget = 0;
+
+		if(disp == 0)	{
+			start_idx = 0;
+			layer_num = psDispcData->primary_display_layer_num;
+		}	else {
+			start_idx = psDispcData->primary_display_layer_num;
+			layer_num = psDispcData->post2_layers - psDispcData->primary_display_layer_num;
+		}
+
+		for(i=0; i<4; i++) {
+			hdl = 100 + i;
+
+			if(i < layer_num)	{
+				memcpy(&layer_info, &psDispcData->layer_info[start_idx + i], sizeof(__disp_layer_info_t));
+
+				if(layer_info.fb.mode == DISP_MOD_NON_MB_PLANAR) {
+					if(layer_info.fb.format == DISP_FORMAT_YUV420) {
+						layer_info.fb.addr[2] = layer_info.fb.addr[0] + layer_info.fb.size.width * layer_info.fb.size.height;
+						layer_info.fb.addr[1] = layer_info.fb.addr[2] + (layer_info.fb.size.width * layer_info.fb.size.height)/4;
+					}
+				}
+				BSP_disp_layer_set_para(disp, hdl, &layer_info);
+				BSP_disp_layer_open(disp, hdl);
+				BSP_disp_layer_set_top(disp, hdl);
+
+				if(i==1 && (psDispcData->layer_info[start_idx + 1].prio < psDispcData->layer_info[start_idx].prio))	{
+					haveFbTarget = 1;
+				}
+			}	else {
+				BSP_disp_layer_close(disp, hdl);
+			}
+
+			if(haveFbTarget) {
+				BSP_disp_layer_set_top(disp, 100);
+			}
+		}
+	}
+
+	BSP_disp_cmd_submit(0);
+	BSP_disp_cmd_submit(1);
+
+	mutex_lock(&g_fbi.runtime_lock);
+	if(g_fbi.b_no_output) {
+		cb_fn(cb_arg, 1);
+	}	else {
+		g_fbi.cb_fn = cb_fn;
+		if(g_fbi.cb_w_conut >= 9)	{
+			g_fbi.cb_w_conut = 0;
+		}	else {
+			g_fbi.cb_w_conut++;
+		}
+		g_fbi.cb_arg[g_fbi.cb_w_conut] = cb_arg;
+		//printk(KERN_WARNING "##w_conut:%d %x %d\n", g_fbi.cb_w_conut, (unsigned int)cb_arg, psDispcData->post2_layers);
+	}
+
+	/* have external display */
+	if(psDispcData->post2_layers > psDispcData->primary_display_layer_num) {
+		g_fbi.reg_active[0] = 0;
+		g_fbi.reg_active[1] = 0;
+	} else {
+		g_fbi.reg_active[0] = 0;
+		g_fbi.reg_active[1] = 1;
+	}
+	mutex_unlock(&g_fbi.runtime_lock);
+
+	return 0;
+}
+EXPORT_SYMBOL(dispc_gralloc_queue);
+
+int dispc_blank(int disp, int blank)
+{
+	int i = 0;
+
+	if(blank)	{
+		for(i=0; i<4; i++) {
+			BSP_disp_layer_close(disp, 100 + i);
+		}
+	}
+	g_fbi.blank[disp] = blank;
+
+	return 0;
 }
 
 #define _ALIGN( value, base ) (((value) + ((base) - 1)) & ~((base) - 1))
@@ -2110,6 +2269,8 @@ __s32 Fb_Init(__u32 from)
 
         INIT_WORK(&g_fbi.vsync_work[0], send_vsync_work_0);
         INIT_WORK(&g_fbi.vsync_work[1], send_vsync_work_1);
+    	INIT_WORK(&g_fbi.post2_cb_work, post2_cb);
+        mutex_init(&g_fbi.runtime_lock);
         mutex_init(&gcommit_mutek);
         INIT_WORK(&g_fbi.commit_work, hwc_commit_work);
         INIT_LIST_HEAD(&g_fbi.update_regs_list);
