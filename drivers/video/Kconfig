@@ -25,7 +25,7 @@ source "drivers/gpu/stub/Kconfig"
 
 source "drivers/gpu/ion/Kconfig"
 
-source "drivers/gpu/mali/Kconfig"
+source "drivers/gpu/mali_new/Kconfig"
 
 config VGASTATE
        tristate
