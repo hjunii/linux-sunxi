@@ -32,6 +32,7 @@ static void mali_write_phys(u32 phys_addr, u32 value);
 #include <linux/module.h>
 #include <linux/clk.h>
 #include <mach/clock.h>
+#include <mach/irqs.h>
 #include <plat/sys_config.h>
 #ifdef CONFIG_FB_SUNXI_RESERVED_MEM
 extern unsigned long fb_start;
@@ -80,7 +81,9 @@ static struct resource mali_gpu_resources_m400_mp2[] =
 
 static struct resource mali_gpu_resources_m400_mp1[] =
 {
-    MALI_GPU_RESOURCES_MALI400_MP1_PMU(0x01C40000, 69, 70, 71, 72)
+    MALI_GPU_RESOURCES_MALI400_MP1_PMU(0x01C40000, 
+            SW_INT_IRQNO_GPU_GP, SW_INT_IRQNO_GPU_GPMMU,
+            SW_INT_IRQNO_GPU_PP0, SW_INT_IRQNO_GPU_PPMMU0)
 };
 
 #endif
@@ -92,6 +95,10 @@ static struct platform_device mali_gpu_device =
 	.dev.release = mali_platform_device_release,
 };
 
+static void mali_gpu_utilization_handler(u32 utilization)
+{
+}
+
 static struct mali_gpu_device_data mali_gpu_data =
 {
 #if defined(CONFIG_ARCH_VEXPRESS)
@@ -100,7 +107,9 @@ static struct mali_gpu_device_data mali_gpu_data =
 	.dedicated_mem_start = 0x80000000, /* Physical start address (use 0xD0000000 for old indirect setup) */
 	.dedicated_mem_size = 0x10000000, /* 256MB */
 #elif defined(CONFIG_ARCH_SUN4I)
-    .shared_mem_size = 512 * 1024 * 1024, /* 512MB */
+    .shared_mem_size = 256 * 1024 * 1024, /* 256MB */
+    .utilization_interval = 1000,
+    .utilization_handler = mali_gpu_utilization_handler,
 #endif
 	.fb_start = 0xe0000000,
 	.fb_size = 0x01000000,
@@ -225,21 +234,21 @@ int mali_platform_device_register(void)
 	MALI_PRINT(("mali clock set completed, clock is  %d Hz\n", rate));
 
 
-	/*enable mali axi/apb clock*/
-	if(mali_clk_flag == 0)
-	{
-		//printk(KERN_WARNING "enable mali clock\n");
-		//MALI_PRINT(("enable mali clock\n"));
-		mali_clk_flag = 1;
-	       if(clk_enable(h_ahb_mali))
-	       {
-		     MALI_PRINT(("try to enable mali ahb failed!\n"));
-	       }
-	       if(clk_enable(h_mali_clk))
-	       {
-		       MALI_PRINT(("try to enable mali clock failed!\n"));
-	        }
-	}
+    /*enable mali axi/apb clock*/
+    if(mali_clk_flag == 0)
+    {
+        //printk(KERN_WARNING "enable mali clock\n");
+        //MALI_PRINT(("enable mali clock\n"));
+        mali_clk_flag = 1;
+        if(clk_enable(h_ahb_mali))
+        {
+            MALI_PRINT(("try to enable mali ahb failed!\n"));
+        }
+        if(clk_enable(h_mali_clk))
+        {
+            MALI_PRINT(("try to enable mali clock failed!\n"));
+        }
+    }
 
     /* Mali-400 MP1 r1p0 or r1p1 */
     MALI_DEBUG_PRINT(4, ("Registering Mali-400 MP1 device\n"));

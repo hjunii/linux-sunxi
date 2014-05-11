@@ -1777,11 +1777,11 @@ static int Fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 	unsigned long layer_hdl = 0;
 #ifdef CONFIG_FB_SUNXI_UMP
 	int secure_id_buf_num = 0;
-#endif
     unsigned long ubuffer[2] = { 0 };
     unsigned long ump_id = 0;
     unsigned long ret_addr = 0;
     unsigned long phy_addr = 0;
+#endif
 
 	switch (cmd) {
 	case FBIOGET_LAYER_HDL_0:
@@ -1842,6 +1842,7 @@ static int Fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 			break;
 		}
 
+#ifdef CONFIG_FB_SUNXI_UMP
     case GET_UMP_PHYSICAL_ADDRESS:
         {
             if (copy_from_user((void*) ubuffer, (void __user *)arg, 2 * sizeof(unsigned long)))
@@ -1873,7 +1874,6 @@ static int Fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
             break;
         }
 
-#ifdef CONFIG_FB_SUNXI_UMP
 	case GET_UMP_SECURE_ID_BUF2:	/* flow trough */
 		secure_id_buf_num++;
 	case GET_UMP_SECURE_ID_BUF1:	/* flow trough */
