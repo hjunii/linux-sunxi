@@ -29,6 +29,9 @@
 #endif
 
 #include <linux/console.h>
+#if defined(CONFIG_ION) || defined(CONFIG_ION_MODULE)
+#include <linux/ion_sunxi.h>
+#endif
 
 #include "drv_disp_i.h"
 #include "dev_disp.h"
@@ -147,6 +150,46 @@ __s32 disp_create_heap(__u32 pHeapHead, __u32 nHeapSize)
 	return 0;
 }
 
+#if defined(CONFIG_ION) || defined(CONFIG_ION_MODULE)
+void *disp_malloc(__u32 num_bytes, __u32 *phys_addr)
+{
+    __u32 actual_bytes;
+    void* address;
+
+    if (num_bytes != 0) 
+    {
+        actual_bytes = MY_BYTE_ALIGN(num_bytes);
+        *phys_addr = sunxi_mem_alloc(actual_bytes);
+        if (*phys_addr) 
+        {
+            address = sunxi_map_kernel(*phys_addr, actual_bytes);
+            __inf("sunxi_mem_alloc ok, address=0x%x, size=0x%x\n", *phys_addr, num_bytes);
+            return address;
+        }
+        __wrn("sunxi_mem_alloc fail, size=0x%x\n", num_bytes);
+    } 
+    else
+    {
+        __wrn("disp_malloc size is zero\n");
+    }
+}
+
+void disp_free(void *virt_addr, void* phys_addr, __u32 num_bytes)
+{
+    __u32 actual_bytes;
+    actual_bytes = MY_BYTE_ALIGN(num_bytes);
+    if(virt_addr) 
+    {
+        sunxi_unmap_kernel(virt_addr);
+    }
+    
+    if (phys_addr) 
+    {
+        sunxi_mem_free((unsigned int)phys_addr, actual_bytes);
+    }
+    return;
+}
+#else
 void *disp_malloc(__u32 num_bytes)
 {
 	struct alloc_struct_t *ptr, *newptr;
@@ -221,6 +264,7 @@ void disp_free(void *p)
 
 	return;
 }
+#endif
 
 __s32 DRV_lcd_open(__u32 sel)
 {
@@ -337,11 +381,20 @@ disp_mem_request(int sel, __u32 size)
 
 #ifdef CONFIG_FB_SUNXI_RESERVED_MEM
 	if (fb_size) {
+#if defined(CONFIG_ION) || defined(CONFIG_ION_MODULE)
+        __u32 phy_addr;
+		void *ret = disp_malloc(size, &phy_addr);
+#else
 		void *ret = disp_malloc(size);
+#endif
 		if (ret) {
 			g_disp_mm[sel].info_base = ret;
+#if defined(CONFIG_ION) || defined(CONFIG_ION_MODULE)
+			g_disp_mm[sel].mem_start = phy_addr;
+#else
 			g_disp_mm[sel].mem_start =
 				virt_to_phys(g_disp_mm[sel].info_base);
+#endif
 			memset(g_disp_mm[sel].info_base, 0, size);
 			__inf("pa=0x%08lx va=0x%p size:0x%x\n",
 			      g_disp_mm[sel].mem_start,
@@ -387,7 +440,11 @@ disp_mem_release(int sel)
 
 #ifdef CONFIG_FB_SUNXI_RESERVED_MEM
 	if (fb_size)
+#if defined(CONFIG_ION) || defined(CONFIG_ION_MODULE)
+		disp_free((void *)g_disp_mm[sel].info_base, (void *)g_disp_mm[sel].mem_start, g_disp_mm[sel].mem_len);
+#else
 		disp_free((void *)g_disp_mm[sel].info_base);
+#endif
 	else
 #endif
 		free_pages((unsigned long)(g_disp_mm[sel].info_base),

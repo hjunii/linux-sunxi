@@ -26,8 +26,13 @@ enum {
 };
 
 __s32 disp_create_heap(__u32 pHeapHead, __u32 nHeapSize);
+#if defined(CONFIG_ION) || defined(CONFIG_ION_MODULE)
+void *disp_malloc(__u32 num_bytes, __u32 *phys_addr);
+void disp_free(void *virt_addr, void* phys_addr, __u32 num_bytes);
+#else
 void *disp_malloc(__u32 num_bytes);
 void disp_free(void *p);
+#endif
 
 __s32 DRV_disp_int_process(__u32 sel);
 __s32 DRV_disp_vsync_event(__u32 sel);

@@ -186,6 +186,25 @@ static int __init reserve_ve_param(char *s)
 early_param("sunxi_ve_mem_reserve", reserve_ve_param);
 #endif
 
+#if defined(CONFIG_ION) || defined(CONFIG_ION_MODULE)
+unsigned long ion_start;
+unsigned long ion_size = CONFIG_ION_SUNXI_CARVEOUT_SIZE * SZ_1M;
+EXPORT_SYMBOL(ion_start);
+EXPORT_SYMBOL(ion_size);
+
+/*
+ * Pick out the ion memory size.  We look for ion_reserve=size,
+ */
+static int __init early_ion_reserve(char *s)
+{
+    unsigned long size;
+    if (kstrtoul(s, 0, &size) == 0)
+        ion_size = size * SZ_1M;
+    return 0;
+}
+early_param("ion_reserve", early_ion_reserve);
+#endif
+
 static void reserve_sys(void)
 {
 	memblock_reserve(SYS_CONFIG_MEMBASE, SYS_CONFIG_MEMSIZE);
@@ -235,7 +254,9 @@ static void __init sw_core_reserve(void)
 #if IS_ENABLED(CONFIG_SUNXI_G2D)
 	reserve_mem(&g2d_start, &g2d_size, "G2D ");
 #endif
-#ifdef CONFIG_FB_SUNXI_RESERVED_MEM
+#if defined(CONFIG_ION) || defined(CONFIG_ION_MODULE)
+    reserve_mem(&ion_start, &ion_size, "ION ");
+#elif defined(CONFIG_FB_SUNXI_RESERVED_MEM)
 	reserve_mem(&fb_start, &fb_size, "LCD ");
 #endif
 	/* Ensure this is set before any arch_init funcs call script_foo */

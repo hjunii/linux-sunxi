@@ -488,6 +488,16 @@ static int __init Fb_map_video_memory(__u32 fb_id, struct fb_info *info)
 	}
 #ifdef CONFIG_FB_SUNXI_RESERVED_MEM
 use_reserved_mem:
+#if defined(CONFIG_ION) || defined(CONFIG_ION_MODULE)
+    info->screen_base = (char __iomem *) disp_malloc(info->fix.smem_len, (__u32 *)(&info->fix.smem_start));
+    if (info->screen_base == NULL)
+        return -ENOMEM;
+
+    memset(info->screen_base, 0, info->fix.smem_len);
+
+    fb_start = info->fix.smem_start;
+    fb_size = info->fix.smem_len;
+#else
 	g_fbi.malloc_screen_base[fb_id] = disp_malloc(info->fix.smem_len);
 	if (g_fbi.malloc_screen_base[fb_id] == NULL)
 		return -ENOMEM;
@@ -503,6 +513,7 @@ use_reserved_mem:
 		info->screen_base = g_fbi.malloc_screen_base[fb_id];
 	}
 	memset_io(info->screen_base, 0, info->fix.smem_len);
+#endif
 
 	__inf("Fb_map_video_memory, pa=0x%08lx size:0x%x\n",
 	      info->fix.smem_start, info->fix.smem_len);
@@ -516,6 +527,11 @@ static inline void Fb_unmap_video_memory(__u32 fb_id, struct fb_info *info)
 	unsigned map_size = PAGE_ALIGN(info->fix.smem_len);
 #ifdef CONFIG_FB_SUNXI_RESERVED_MEM
 	if (fb_size) {
+#if defined(CONFIG_ION) || defined(CONFIG_ION_MODULE)
+        __inf("Fb_unmap_video_memory: fb_id=%d, disp_free(%p)\n",
+                fb_id, (void*) info->fix.smem_start);
+        disp_free((void*) info->screen_base, (void*) info->fix.smem_start, info->fix.smem_len);
+#else
 		if ((void *)info->screen_base !=
 					g_fbi.malloc_screen_base[fb_id]) {
 			__inf("Fb_unmap_video_memory: fb_id=%d, iounmap(%p)\n",
@@ -525,6 +541,7 @@ static inline void Fb_unmap_video_memory(__u32 fb_id, struct fb_info *info)
 		__inf("Fb_unmap_video_memory: fb_id=%d, disp_free(%p)\n",
 				fb_id, g_fbi.malloc_screen_base[fb_id]);
 		disp_free(g_fbi.malloc_screen_base[fb_id]);
+#endif
 	} else
 #endif
 		free_pages((unsigned long)info->screen_base,
@@ -2262,9 +2279,12 @@ __s32 Fb_Init(__u32 from)
 	if (first_time) { /* First call ? */
 		DRV_DISP_Init();
 
+#if defined(CONFIG_ION) || defined(CONFIG_ION_MODULE)
+#else
 #ifdef CONFIG_FB_SUNXI_RESERVED_MEM
 		__inf("fbmem: fb_start=%lu, fb_size=%lu\n", fb_start, fb_size);
 		disp_create_heap((unsigned long)(__va(fb_start)), fb_size);
+#endif
 #endif
 
         INIT_WORK(&g_fbi.vsync_work[0], send_vsync_work_0);
