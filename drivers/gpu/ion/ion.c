@@ -1518,6 +1518,7 @@ long sunxi_ion_ioctl(struct ion_client *client, unsigned int cmd, unsigned long 
 		if(!valid)
 			return -EINVAL;
 		ret = ion_phys(client, handle, (ion_phys_addr_t *)&data.phys_addr, (size_t *)&data.size);
+        ion_handle_put(handle);
 		if(ret)
 			return -EINVAL;
 		if(copy_to_user((void __user *)arg, &data, sizeof(data)))
