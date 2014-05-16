@@ -322,7 +322,7 @@ int __init sunxi_mem_allocator_init(void)
 arch_initcall(sunxi_mem_allocator_init);
 
 //bool sunxi_mem_alloc(u32 size, u32* virmem, u32* phymem)
-unsigned int sunxi_mem_alloc(unsigned int size)
+unsigned int sunxi_mem_alloc_old(unsigned int size)
 {
 	u32	vtemp = 0, ptemp = 0;
 	unsigned long	flags;
@@ -340,10 +340,10 @@ unsigned int sunxi_mem_alloc(unsigned int size)
 	SXM_DBG("%s: size 0x%08x, ret 0x%08x!\n", __func__, size, ptemp);
 	return ptemp;
 }
-EXPORT_SYMBOL(sunxi_mem_alloc);
+EXPORT_SYMBOL(sunxi_mem_alloc_old);
 
 //void sunxi_mem_free(u32 virmem, u32 phymem)
-void sunxi_mem_free(unsigned int phymem)
+void sunxi_mem_free_old(unsigned int phymem)
 {
 	u32	vtemp = phymem; /* to check */
 	unsigned long	flags;
@@ -355,7 +355,7 @@ void sunxi_mem_free(unsigned int phymem)
 		g_allocator->free(g_allocator, vtemp, phymem);
 	spin_unlock_irqrestore(&sunxi_memlock, flags);
 }
-EXPORT_SYMBOL(sunxi_mem_free);
+EXPORT_SYMBOL(sunxi_mem_free_old);
 
 u32 sunxi_mem_get_rest_size(void)
 {

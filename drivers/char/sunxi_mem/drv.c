@@ -97,7 +97,7 @@ static int sunmm_release(struct inode *inode, struct file *file)
 			/* free item */
 			kmem_cache_free(g_pmem_cache, (void *)pitem);
 			/* free from reserved mem */
-			sunxi_mem_free(phys_addr);
+			sunxi_mem_free_old(phys_addr);
 
 			SUNMM_LOCK(&pdata->lock, flags);
 		}
@@ -145,7 +145,7 @@ long sunmm_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		SXM_DBG("%s, SUNXI_MEM_ALLOC - get size_to_alloc 0x%08x\n", __func__, size_to_alloc);
 
 		/* alloc from reserved mem */
-		uphysaddr = sunxi_mem_alloc(size_to_alloc);
+		uphysaddr = sunxi_mem_alloc_old(size_to_alloc);
 		if(0 == uphysaddr) {
 			SXM_ERR("%s err, line %d, sunxi_mem_alloc failed, size_to_alloc %d\n", __func__, __LINE__, size_to_alloc);
 			goto end;
@@ -154,7 +154,7 @@ long sunmm_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		pdes = (struct sunxi_mem_des *)kmem_cache_alloc(g_pmem_cache, GFP_KERNEL);
 		if(NULL == pdes) {
 			SXM_ERR("%s err, line %d, kmem_cache_alloc failed\n", __func__, __LINE__);
-			sunxi_mem_free(uphysaddr); /* release buf */
+			sunxi_mem_free_old(uphysaddr); /* release buf */
 			goto end;
 		}
 
@@ -202,7 +202,7 @@ long sunmm_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 					/* free item */
 					kmem_cache_free(g_pmem_cache, (void *)pitem);
 					/* free from reserved mem */
-					sunxi_mem_free(physaddr_to_free);
+					sunxi_mem_free_old(physaddr_to_free);
 					bfind = true;
 					break;
 				}
