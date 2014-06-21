@@ -9,7 +9,7 @@ CONFIG:=ca8-virtex820-m400-1
 endif
 
 USING_MMU:=1
-USING_UMP:=0
+USING_UMP:=1
 USING_PMM:=1
 BUILD:=release
 TARGET_PLATFORM:=arm
@@ -20,6 +20,6 @@ endif
 export CONFIG USING_MMU USING_UMP USING_PMM BUILD TARGET_PLATFORM
 
 export EXTRA_DEFINES = -DMALI_FAKE_PLATFORM_DEVICE=1
-export MALI_PLATFORM_FILES = platform/arm/arm.c
+export MALI_PLATFORM_FILES = platform/arm/arm.c platform/arm/arm_core_scaling.c
 
 obj-$(CONFIG_MALI) += devicedrv/ump/ devicedrv/mali/

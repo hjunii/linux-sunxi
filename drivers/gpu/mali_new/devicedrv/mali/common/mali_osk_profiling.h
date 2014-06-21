@@ -15,6 +15,7 @@
 
 #include "mali_linux_trace.h"
 #include "mali_profiling_events.h"
+#include "mali_profiling_gator_api.h"
 
 #define MALI_PROFILING_MAX_BUFFER_ENTRIES 1048576
 
@@ -129,7 +130,7 @@ mali_bool _mali_osk_profiling_have_recording(void);
 
 #else /* defined(CONFIG_MALI400_PROFILING)  && defined(CONFIG_TRACEPOINTS) */
 
- /* Dummy add_event, for when profiling is disabled. */
+/* Dummy add_event, for when profiling is disabled. */
 
 #define _mali_osk_profiling_add_event(event_id, data0, data1, data2, data3, data4)
 
