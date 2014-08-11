@@ -224,6 +224,9 @@ UMP_KERNEL_API_EXPORT void ump_dd_reference_add(ump_dd_handle mem);
 UMP_KERNEL_API_EXPORT void ump_dd_reference_release(ump_dd_handle mem);
 
 
+UMP_KERNEL_API_EXPORT int ump_dd_descriptor_mapping_get(int descriptor, void** target);
+
+
 #ifdef __cplusplus
 }
 #endif

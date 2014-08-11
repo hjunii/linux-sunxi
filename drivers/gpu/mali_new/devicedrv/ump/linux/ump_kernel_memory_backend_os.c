@@ -26,6 +26,7 @@
 #include "ump_kernel_common.h"
 #include "ump_kernel_memory_backend.h"
 
+#include <linux/sunxi_physmem.h>
 
 
 typedef struct os_allocator {
@@ -104,6 +105,7 @@ static int os_allocate(void* ctx, ump_dd_mem * descriptor)
 	os_allocator * info;
 	int pages_allocated = 0;
 	int is_cached;
+	u32 paddr = 0;
 
 	BUG_ON(!descriptor);
 	BUG_ON(!ctx);
@@ -118,7 +120,8 @@ static int os_allocate(void* ctx, ump_dd_mem * descriptor)
 	}
 
 	descriptor->backend_info = NULL;
-	descriptor->nr_blocks = ((left + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1)) >> PAGE_SHIFT;
+	//descriptor->nr_blocks = ((left + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1)) >> PAGE_SHIFT;
+	descriptor->nr_blocks = 1;
 
 	DBG_MSG(5, ("Allocating page array. Size: %lu\n", descriptor->nr_blocks * sizeof(ump_dd_physical_block)));
 
@@ -129,6 +132,24 @@ static int os_allocate(void* ctx, ump_dd_mem * descriptor)
 		return 0; /* failure */
 	}
 
+	paddr = sunxi_mem_alloc_old(descriptor->size_bytes);
+
+	if (paddr == 0)
+	{
+		vfree(descriptor->block_array);
+		descriptor->backend_info = NULL;
+		descriptor->block_array = NULL;
+
+		DBG_MSG(4, ("Could not find a mem-block for the allocation.\n"));
+		up(&info->mutex);
+
+		return 0;
+	}
+
+	descriptor->block_array[0].addr = paddr;
+	descriptor->block_array[0].size = descriptor->size_bytes;
+
+#if 0
 	while (left > 0 && ((info->num_pages_allocated + pages_allocated) < info->num_pages_max)) {
 		struct page * new_page;
 
@@ -182,6 +203,7 @@ static int os_allocate(void* ctx, ump_dd_mem * descriptor)
 	info->num_pages_allocated += pages_allocated;
 
 	DBG_MSG(6, ("%d out of %d pages now allocated\n", info->num_pages_allocated, info->num_pages_max));
+#endif
 
 	up(&info->mutex);
 
@@ -202,7 +224,7 @@ static void os_free(void* ctx, ump_dd_mem * descriptor)
 
 	info = (os_allocator*)ctx;
 
-	BUG_ON(descriptor->nr_blocks > info->num_pages_allocated);
+	//BUG_ON(descriptor->nr_blocks > info->num_pages_allocated);
 
 	if (down_interruptible(&info->mutex)) {
 		DBG_MSG(1, ("Failed to get mutex in os_free\n"));
@@ -211,16 +233,19 @@ static void os_free(void* ctx, ump_dd_mem * descriptor)
 
 	DBG_MSG(5, ("Releasing %lu OS pages\n", descriptor->nr_blocks));
 
-	info->num_pages_allocated -= descriptor->nr_blocks;
+	//info->num_pages_allocated -= descriptor->nr_blocks;
 
 	up(&info->mutex);
 
 	for ( i = 0; i < descriptor->nr_blocks; i++) {
+		sunxi_mem_free_old(descriptor->block_array[i].addr);
+#if 0
 		DBG_MSG(6, ("Freeing physical page. Address: 0x%08lx\n", descriptor->block_array[i].addr));
 		if ( ! descriptor->is_cached) {
 			dma_unmap_page(NULL, descriptor->block_array[i].addr, PAGE_SIZE, DMA_BIDIRECTIONAL);
 		}
 		__free_page(pfn_to_page(descriptor->block_array[i].addr>>PAGE_SHIFT) );
+#endif
 	}
 
 	vfree(descriptor->block_array);

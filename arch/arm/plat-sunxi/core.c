@@ -172,7 +172,7 @@ early_param("sunxi_g2d_mem_reserve", reserve_g2d_param);
 #define RESERVE_VE_MEM 1
 
 unsigned long ve_start;
-unsigned long ve_size = (SZ_64M + SZ_16M);
+unsigned long ve_size = (4 * SZ_64M);
 EXPORT_SYMBOL(ve_start);
 EXPORT_SYMBOL(ve_size);
 

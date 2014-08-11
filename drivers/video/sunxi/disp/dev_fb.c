@@ -1767,6 +1767,8 @@ int hwc_commit(int sel, setup_dispc_data_t *disp_data)
 int (*disp_get_ump_secure_id) (struct fb_info *info, fb_info_t *g_fbi,
 			       unsigned long arg, int buf);
 EXPORT_SYMBOL(disp_get_ump_secure_id);
+unsigned long (*disp_get_ump_phy_addr) (unsigned long ump_id);
+EXPORT_SYMBOL(disp_get_ump_phy_addr);
 #endif
 
 static int Fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
@@ -1775,6 +1777,10 @@ static int Fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 	unsigned long layer_hdl = 0;
 #ifdef CONFIG_FB_SUNXI_UMP
 	int secure_id_buf_num = 0;
+	unsigned long ubuffer[2] = { 0 };
+	unsigned long ump_id = 0;
+	unsigned long ret_addr = 0;
+	unsigned long phy_addr = 0;
 #endif
 
 	switch (cmd) {
@@ -1850,6 +1856,36 @@ static int Fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 							      secure_id_buf_num);
 			else
 				return -ENOTSUPP;
+		}
+	case GET_UMP_PHYSICAL_ADDRESS:
+		{
+			if (copy_from_user((void*) ubuffer, (void __user *)arg, 2 * sizeof(unsigned long)))
+			{
+				__wrn("copy from user fail\n");
+				return -EFAULT;
+			}
+
+			ump_id = *(unsigned long *)ubuffer;
+			ret_addr = (*(unsigned long*)(ubuffer + 1));
+
+			if (!disp_get_ump_phy_addr)
+				request_module("disp_ump");
+			if (disp_get_ump_phy_addr)
+			{
+				phy_addr = disp_get_ump_phy_addr(ump_id);
+				//pr_info("ump_id = %d phy_addr = %x\n", ump_id, phy_addr);
+			}
+
+			if (phy_addr == 0)
+				return -1;
+
+			if (copy_to_user((void __user *) ret_addr, &phy_addr, sizeof(unsigned long)))
+			{
+				__wrn("copy to user fail\n");
+				return -EFAULT;
+			}
+
+			break;
 		}
 #endif
 
